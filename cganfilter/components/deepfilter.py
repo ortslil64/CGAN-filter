@@ -2,7 +2,7 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import tensorflow as tf
 import numpy as np
-from deepbayesianfilter.components.components import downsample, upsample, downsample1d, upsample1d, discriminator_loss, generator_loss
+from cganfilter.components.components import downsample, upsample, downsample1d, upsample1d, discriminator_loss, generator_loss
 from tensorflow.keras import regularizers
     
 

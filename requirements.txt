@@ -1,0 +1,7 @@
+keras-tcn
+tensorflow-gpu==2.3.0
+cganfilter
+numpy
+scipy
+tqdm
+matplotlib

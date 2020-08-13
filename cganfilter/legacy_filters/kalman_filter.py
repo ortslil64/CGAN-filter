@@ -93,7 +93,7 @@ def Kalman_smoother_unknown_input(z, idxs):
     p = np.ones((len(z),2,2))
     A = np.array([[0.8,1],[0,1]])
     H = np.array([0.5,0])
-    Q = np.diag([0.01,0.0])
+    Q = np.diag([0.001,0.0])
     R = 0.01
     for i in range(len(x)-1):
         x[i+1] = A.dot(x[i]) 

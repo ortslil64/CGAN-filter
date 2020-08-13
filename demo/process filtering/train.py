@@ -4,8 +4,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 from tqdm import tqdm
 from cganfilter.models.time_serias_filter import DeepNoisyBayesianFilter, DeepNoisyBayesianFilterLinearPredictor, TCNBayesianFilter, DeepNoisyBayesianFilter1D
-from time_series_generator import random_walk
-from cganfilter.legacy_filters.kalman_filter import Kalman_smoother
+from time_series_generator import random_walk, linear_process_with_input, non_linear_process
+from cganfilter.legacy_filters.kalman_filter import Kalman_smoother, Kalman_smoother_unknown_input
+from cganfilter.legacy_filters.particle_filter import particle_filter_non_linear
 import tensorflow as tf
 import scipy.io
 TF_ENABLE_GPU_GARBAGE_COLLECTION=False
@@ -44,9 +45,23 @@ for mc_run in range(mc_runs):
     training_ep = 0
     tf.keras.backend.clear_session()
     gpus = tf.config.experimental.list_physical_devices('GPU')
-    tf.config.experimental.set_memory_growth(gpus[0], True)
-    tf.config.experimental.set_memory_growth(gpus[1], True)
+    for gpu in gpus:
+        tf.config.experimental.set_memory_growth(gpu, True)
     with tf.device('/gpu:0'):
+        '''
+        Choose a model:
+            1) Multiple CGANs based on pix2pix (Unet):
+               DeepNoisyBayesianFilter(sh = img_shape[0], H = 0.5, loss_type = "l2")
+               
+               or with l1 norm type loss use:
+               DeepNoisyBayesianFilter(sh = img_shape[0], H = 0.5, loss_type = "l1")
+               
+            2) Hybrid CGANs based on pix2pix (Unet) and TCN:
+               TCNBayesianFilter(sh = img_shape[0], H = 0.5, loss_type = "l2")
+               
+               or with l1 norm type loss use:
+               TCNBayesianFilter(sh = img_shape[0], H = 0.5, loss_type = "l1")
+        '''
         df = DeepNoisyBayesianFilter(sh = img_shape[0], H = 0.5, loss_type = "l1")
     
     df_samples.append([])
@@ -55,12 +70,25 @@ for mc_run in range(mc_runs):
     obs_samples.append([])
     idxs_samples.append([])
     err_df.append([])
-    
     err_kf.append([])
     MSE_df.append([])
-    MSE_kf.append([])   
-    # ---- Sample simulation ---- #             
-    x, z, idxs = random_walk(steps = 1200000,random_measurments = False, measure_time = measure_gap)
+    MSE_kf.append([])
+    
+    # ---- Sample simulation ---- #      
+    '''
+    Choose simulation:
+        1) random walk:
+           x, z, idxs = random_walk(steps = 1200000,random_measurments = False, measure_time = measure_gap)
+           
+        2) Linear process with input:
+           x, z, idxs, u = linear_process_with_input(steps = 1200000)
+           
+        3) Non-linear process:
+            x, z, idxs = non_linear_process(steps = 1200000)
+           
+    '''       
+    #x, z, idxs = random_walk(steps = 1200000,random_measurments = False, measure_time = measure_gap)
+    x, z, idxs = non_linear_process(steps = 1200000)
     for t in range(min_img*img_shape[0]*img_shape[1], len(x), img_shape[0]*img_shape[1]//2):
         # ----- Train on the current history ---- #
         for itr in range(t-min_img*img_shape[0]*img_shape[1], t-2*img_shape[0]*img_shape[1], skips):
@@ -93,9 +121,18 @@ for mc_run in range(mc_runs):
                 x_hat_df = df.predict_mean(x_old, z_new)
            
             
-         
-            x_hat_kf, p_hat_kf = Kalman_smoother(z_new, idxs_new, u = u_new ,x0 = x_new[0], A = 1.0, R = 0.01, Q = 0.0001, hist = 200)
-           
+            '''
+            Choose optimal filter to compare:
+                1) Kalman filter:
+                   x_hat_kf, p_hat_kf = Kalman_smoother(z_new, idxs_new, u = u_new ,x0 = x_new[0], A = 1.0, R = 0.01, Q = 0.0001, hist = 200)
+                 
+                3) Kalman filter with unknown input (action):
+                    x_hat_kf, p_hat_kf = Kalman_smoother_unknown_input(z_new,idxs_new)
+                2) Particle filter:
+                   x_hat_kf, p_hat_kf =  particle_filter_non_linear(z_new,x_new[0], idxs_new)
+            '''
+            #x_hat_kf, p_hat_kf = Kalman_smoother(z_new, idxs_new, u = u_new ,x0 = x_new[0], A = 1.0, R = 0.01, Q = 0.0001, hist = 200)
+            x_hat_kf, p_hat_kf =  particle_filter_non_linear(z_new,x_new[0], idxs_new)
             
             df_samples[mc_run].append(x_hat_df[n_crop:-n_crop])
             idxs_samples[mc_run].append(idxs_new[n_crop:-n_crop])

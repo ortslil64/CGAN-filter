@@ -3,9 +3,9 @@ from __future__ import absolute_import, division, print_function, unicode_litera
 
 import numpy as np
 from tensorflow.keras import regularizers
-from deepbayesianfilter.components.deepfilter import DeepFilter, smooth, normalize, unnormalize, preprocess_data, preprocess_Bayesian_data, smooth_var, gen_sample
-from deepbayesianfilter.components.tcn_predictor import TCNPredictor
-from deepbayesianfilter.components.deepfilter import DeepFilter1D
+from cganfilter.components.deepfilter import DeepFilter, smooth, normalize, unnormalize, preprocess_data, preprocess_Bayesian_data, smooth_var, gen_sample
+from cganfilter.components.tcn_predictor import TCNPredictor
+from cganfilter.components.deepfilter import DeepFilter1D
     
     
 class DeepNoisyBayesianFilter():

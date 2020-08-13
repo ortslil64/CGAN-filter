@@ -26,7 +26,7 @@ def random_walk(steps = 5000000, random_measurments = False, measure_time = 600)
             idxs[i+1] = 0
     return data_x, data_y, idxs
 
-def linear_process_sin(steps = 5000000):
+def linear_process_with_input(steps = 5000000):
     H = 0.5
     A = 0.8
     data_x = np.zeros(steps)
