@@ -21,43 +21,63 @@ import skvideo.io
 import matplotlib
 from skimage import data
 import cv2
+import spo_dataset
+# ---- Aditional functions ---- #
 
 def add_border(img, border_size = 1, intense = 255):
     img_size = img.shape
     bigger_img = np.ones((img_size[0]+border_size*2, img_size[1]+border_size*2))*intense
     bigger_img[border_size:(border_size+img_size[0]) , border_size:(border_size+img_size[1])] = img
     return bigger_img
+
+def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, image_type = None,  output_type = "images", output_folder = "dataset/images/dots/",  partial = False, mask = None):
+    frames = []
+    if mask is not None:
+        mask = cv2.imread(mask,0)
+        mask = cv2.resize(mask, img_shape,interpolation = cv2.INTER_AREA)
+    if video_path is not None:
+        images, _ = get_video(video_path, n)
+        x,z = get_dataset_from_video(images, n)
+    elif image_path is not None:
+        image = cv2.imread(image_path,0)
+        image = cv2.resize(image, img_shape,interpolation = cv2.INTER_AREA)
+        x,z = get_dataset_from_image(image/255, n, radius = [15, 25],  partial = partial, mask = mask)
+    elif image_type == "dots":
+        image = generate_image(0.01)
+        x,z = get_dataset_from_image(image, n, radius = [15, 25],  partial = partial, mask = mask)
+    elif image_type == "checkers":
+        image = np.array(data.checkerboard()).astype(np.float64)
+        image = cv2.resize(image, img_shape,interpolation = cv2.INTER_AREA)
+        x,z = get_dataset_from_image(image/255, n, radius = [15, 25],  partial = partial, mask = mask)
     
-         
-err_df = []
-err_direct = []
+    return x, z
+
+
+# ---- initialize parameters ---- #
 hist = 4     
 img_shape = (128,128) 
-
 noise_rate = 0.2
-
-
-
 n = 1000
 n_test = 700 
 n_train = n -  n_test
-image = cv2.imread('source_image/tree.jpg',0)
-mask = cv2.imread('source_image/tree_masked.jpg',0)
-image = cv2.resize(image, img_shape,interpolation = cv2.INTER_AREA)/255.0
-mask = cv2.resize(mask, img_shape ,interpolation = cv2.INTER_AREA)
-x, z = get_dataset(image,n_train,n_circles = 1, radius = [25], v = [[1,1]], pose = [[30,0]])
-# video_path = 'source_video/illusion.mp4'
-# images, _ = get_video(video_path, n)
-# z,x = get_dataset(images, n, n_circles = 2, radius = [14, 16])
-# image = data.checkerboard()/255.0
-# image = cv2.resize(image, (128,128),interpolation = cv2.INTER_AREA)
-# x, z = get_dataset(image,n,n_circles = 1, radius = [13], v = [[1,1]], pose = [[10,0]], partial = True)
-x_train = x
-z_train = z
+# ---- Get the dataset ---- #
 
+x, z = generate_dataset(img_shape, n = 1000,
+                     image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg',
+                     mask=spo_dataset.__path__[0] + '/source_image/tree_masked.jpg',
+                     partial=True)
+        
+x_train = x[:n_train]
+z_train = z[:n_train]
+x_test = x[n_train:]
+z_test = z[n_train:] 
+
+
+# ---- Initialize ---- #
 tf.keras.backend.clear_session()
-
 df = DeepNoisyBayesianFilter(hist,img_shape)
+
+# ---- Train ---- #
  
 train_likelihood(df, x_train, z_train, epochs = 130) #100
 train_predictor(df,x_train,epochs = 10, min_img = 2) #5
@@ -67,26 +87,9 @@ train_relax(df, x_train, z_train, epochs = 5,  min_img = 10) # 10
 train_relax(df, x_train, z_train, epochs = 50,  min_img = 50) # 10
 train_relax(df, x_train, z_train, epochs = 50,  min_img = None) # 10
 
-#df.save_weights(".weights"+str(noise_rate))
 
-# df.load_weights(".weights"+str(noise_rate))
-x, z = get_dataset(image,n_test,n_circles = 1, radius = [25], v = [[1,1]], pose = [[30,0]], mask = mask)
-x_test= x
-z_test= z
-
-
-x_old = x_test[:hist,...].copy() 
-
-
-     
-cm_err_df = []  
-mass_err_df = []  
-img_err_df = []  
- 
-cm_err_direct = []  
-mass_err_direct = [] 
-img_err_direct = []
-  
+# ---- Test and viualize ---- #
+x_old = x_test[:hist,...].copy()   
 frames = []
 obs_frames = []
 state_frames = []
@@ -100,47 +103,32 @@ for t in range(0+hist,n_test-1):
     x_hat_df = x_hat_df[:,:,0]
     x_hat_df_like = df.estimate(z_new_test)
     x_hat_df_like = x_hat_df_like[0,:,:,0]    
-
-    cm_err_df.append(cm_error(x_new, x_hat_df)) 
-    mass_err_df.append(mass_error(x_new, x_hat_df))  
-    img_err_df.append(img_desc(x_new, x_hat_df)) 
-    
-    cm_err_direct.append(cm_error(x_new, x_hat_df_like)) 
-    mass_err_direct.append(mass_error(x_new, x_hat_df_like))  
-    img_err_direct.append(img_desc(x_new, x_hat_df_like))
-                 
     x_old[:-1,:,:] = x_old[1:,:,:]
     x_old[-1,:,:] = x_hat_df   
-    
     obs_frames.append(add_border(normalize_image(z_new)))       
     state_frames.append(add_border(normalize_image(x_new)))  
     df_frames.append(add_border(normalize_image(x_hat_df)))  
     direct_frames.append(add_border(normalize_image(x_hat_df_like)))  
-     
-   
     frame1 = np.concatenate((normalize_image(x_new),normalize_image(z_new)),axis = 1)
     frame2 = np.concatenate((normalize_image(x_hat_df),normalize_image(x_hat_df_like) ),axis = 1)
     frame = np.concatenate((frame1,frame2),axis = 0)
     frames.append(frame)
-    
+
+# ---- Saves multiple samples as an image ---- #
 idxs = np.arange(0,140,10, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
 direct_img = np.concatenate(tuple(np.array(direct_frames)[idxs]),axis=1)
-full_img = np.concatenate(( obs_img,state_img, df_img, direct_img), axis = 0)
-matplotlib.image.imsave('partial_observation.png', full_img, cmap='gray')
-  
+full_img = np.concatenate(( obs_img,state_img, df_img, direct_img), axis = 0).astype(np.uint8)
+matplotlib.image.imsave('samples.png', full_img, cmap='gray')
+
+# ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
 skvideo.io.vwrite("partial_observation_output.mp4", frames) 
 
-scipy.io.savemat('partial_observation_data.mat', mdict={'cm_err_df': np.array(cm_err_df),
-                                       'cm_err_direct': np.array(cm_err_direct),
-                                       'img_err_df': np.array(img_err_df),
-                                       'img_err_direct': np.array(img_err_direct),
-                                       'mass_err_df': np.array(mass_err_df),
-                                       'mass_err_direct': np.array(mass_err_direct)})
-
+# ---- Save Weights ---- #
+df.save_weights('model_weights')
 
  
     

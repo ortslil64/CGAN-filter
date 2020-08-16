@@ -2,7 +2,7 @@
 from __future__ import absolute_import, division, print_function, unicode_literals
 
 import numpy as np
-from deepbayesianfilter.components.deepfilter import DeepFilter, normalize, smooth_var, gen_sample, preprocess_data
+from cganfilter.components.deepfilter import DeepFilter, normalize, smooth_var, gen_sample, preprocess_data
 
 def normalize_v(x):
     cmax = np.max(x)
