@@ -25,9 +25,38 @@ The dataset is taken from https://github.com/ortslil64/SPO-dataset.
 The models pipelines are visualized in the next figure. each component (predictor, corrector and likelihood) are based on pix2pix architecture with Unet as its ganerative model.
 ![demo](https://github.com/ortslil64/CGAN-filter/blob/master/images/model.png?raw=true "Pipelines")
 ## Installation
-Install the dependencies in 
+1) Clone the repository:
+```bash
+git clone https://github.com/ortslil64/CGAN-filter.git
+```
+
+2) Install the dependencies in `requirments.txt` file
+
+3) Install the package using pip:
+```bash
+pip install -e CGAN-filter
+```
+
+4) (optional) Download, unzip the demo model weights and save them into `demo/video filtering/model_weights`:
+
+```bash
+wget https://googledrive.com/
+```
+
 ## Usage
-bla
+
+### Time-series filtering
+Run the demo file:
+```bash
+python demo/process\ filtering/train.py  
+```
+The file can be modified for different filtering tasks (linear\ non-linear\ multiple inputs\ etc.)
+
+### Video filtering
+Run the demo file:
+```bash
+python demo/video\ filtering/train.py  
+```
 
 ## References
 Not yet published, "Better-than-optimal filtering with conditional GANs"

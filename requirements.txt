@@ -5,3 +5,4 @@ numpy
 scipy
 tqdm
 matplotlib
+-e https://github.com/ortslil64/SPO-dataset
