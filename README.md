@@ -42,9 +42,8 @@ pip install -e CGAN-filter
 
 4) (optional) Download, unzip the demo model weights and save them into `demo/video filtering/model_weights`:
 
-```bash
-wget https://googledrive.com/
-```
+https://drive.google.com/file/d/1iTlpMKYUM2k2bEPxOgtkuoL3-mmnujfd/view?usp=sharing
+
 
 ## Usage
 
