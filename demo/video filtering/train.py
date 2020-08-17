@@ -16,7 +16,7 @@ import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
 from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
 import scipy.io
-from train_deepbayesianfilter_video import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
+from common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
 import skvideo.io
 import matplotlib
 from skimage import data
@@ -115,7 +115,7 @@ for t in range(0+hist,n_test-1):
     frames.append(frame)
 
 # ---- Saves multiple samples as an image ---- #
-idxs = np.arange(0,140,10, dtype = np.int16)
+idxs = np.arange(15,55,4, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
@@ -125,7 +125,7 @@ matplotlib.image.imsave('samples.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
-skvideo.io.vwrite("partial_observation_output.mp4", frames) 
+skvideo.io.vwrite("samples.mp4", frames) 
 
 # ---- Save Weights ---- #
 df.save_weights('model_weights')
