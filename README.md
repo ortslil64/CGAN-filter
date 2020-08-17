@@ -13,7 +13,10 @@ The following figure shows the CGAN filter performance (mean square error (MSE) 
 The top figure shows in red is the MSE of the Kalman filter, in blue is the MSE of the CGAN filter, in  black the Cramer–Rao bound and in dashed blackthe new tighter bound.
 The bottom figure shows the bias of the CGAN filter over training. The both figures are 200 Monte-Carloruns of 450 training epochs.
 Each epoch consists of 327680 samples and is divided to 40 128×128 images who overlapeach other.
-![demo](https://github.com/ortslil64/CGAN-filter/blob/master/images/MSE.png?raw=true "Under the tree the object are not observable")
+
+<p align="center">
+  <img src="https://github.com/ortslil64/CGAN-filter/blob/master/images/MSE.png" width="500" alt="accessibility text">
+</p>
 
 ## dataset
 The dataset is taken from https://github.com/ortslil64/SPO-dataset.
