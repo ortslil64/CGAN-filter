@@ -68,7 +68,7 @@ Not yet published, "Better-than-optimal filtering with conditional GANs"
 ### cganfilter.models.video_filter
 This is a filter to estimate sequance of images given their corresponding observations.
 Example to train the predictor:
-```bash
+```python
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
 
 hist = 4     
