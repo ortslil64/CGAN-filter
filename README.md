@@ -62,3 +62,29 @@ python demo/video\ filtering/train.py
 
 ## References
 Not yet published, "Better-than-optimal filtering with conditional GANs"
+
+## API tutorial
+
+### cganfilter.models.video_filter
+This is a filter to estimate sequance of images given their corresponding observations.
+Example to train the predictor:
+```bash
+from cganfilter.models.video_filter import DeepNoisyBayesianFilter
+
+hist = 4     
+img_shape = (128,128) 
+epochs = 100
+min_img = 20
+
+x_train, z_train = get_dataset_from_somewhere()
+n_train = len(x_train)
+ 
+df = DeepNoisyBayesianFilter(hist,img_shape)
+
+for epoch in tqdm(range(epochs)):
+  for t in range(min_img+hist,n_train-1):
+      x_new = x_train[t].copy()
+      x_old = x_train[t-hist:t].copy()
+      df.train_predictor(x_old, x_new)
+
+```
