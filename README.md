@@ -67,15 +67,46 @@ Not yet published, "Better-than-optimal filtering with conditional GANs"
 
 ### cganfilter.models.video_filter
 This is a filter to estimate sequance of images given their corresponding observations.
+Methods for DeepNoisyBayesianFilter(hist = 4, image_shape = (128,128)):
+`hist` is the number of images to take as condition (Markov Model of order hist).
+`image_shape` is the shape (2d) for the output and input image.
+1) train_predictor(x_old, x_new)
+Train the predictor CGAN for input x_old and output x_new. x_old shape must be [image_shape[0],image_shape[1], hist] and x_new shape must be  [image_shape[0],image_shape[1]].
+
+2) train_likelihood(z_new, x_new)
+Trains the likelihood CGAN. z_new is the observations of x_new (hidden model). z_new has the same shape as x_new.
+
+3) train_updator(x_old, x_new, z_new)
+Train the corrector CGAN.
+
+4) propogate(x_old)
+Predicts the next state given the last one (x_old), forecasting.
+
+5) estimate(z_new)
+Using the likelihood (inverse mmeasurment CGAN) component the estimate the state given the measurment z_new.
+
+6) predict_mean(x_old,z_new)
+Estimates the current state, given the last estimated states x_old and observation z_new. This should be recursive, so that the next estimated state is the first in the x_old array of states (with length 'hist').
+
+7) save_weights(path)
+Saves the weights of the 3 CGANs models in the path directory.
+
+7) load_weights(path)
+Loads the weights of the 3 CGANs models from the path directory.
+
+
+
 Example to train the predictor:
 ```python
-from cganfilter.models.video_filter import DeepNoisyBayesianFilter
+from cganfilter.models.video_filter i(mport DeepNoisyBayesianFilter
 
+# ---- Parameters ---- #
 hist = 4     
 img_shape = (128,128) 
 epochs = 100
 min_img = 20
 
+# ---- Get the dataset ---- #
 x_train, z_train = get_dataset_from_somewhere()
 n_train = len(x_train)
  
@@ -88,3 +119,60 @@ for epoch in tqdm(range(epochs)):
       df.train_predictor(x_old, x_new)
 
 ```
+
+### cganfilter.models.time_serias_filter
+This is a filter to estimate sequance of images given their corresponding observations.
+
+
+Example to train the predictor:
+```python
+from cganfilter.models.time_serias_filter import DeepNoisyBayesianFilter
+
+# ---- Parameters ---- #
+plot_flag = True
+measure_gap = 100
+img_shape = (64,64)
+min_img = 20
+skips = img_shape[0]*img_shape[1]//2
+n_crop = 100
+min_training =  2000
+mc_runs = 100
+
+
+# ---- Get the dataset ---- #
+x, z = get_dataset_from_somewhere()
+n_train = len(x_train)
+ 
+df = DeepNoisyBayesianFilter(sh = img_shape[0], H = 0.5, loss_type = "l1") 
+
+for t in range(min_img*img_shape[0]*img_shape[1], len(x), img_shape[0]*img_shape[1]//2):
+  # ----- Train on the current history ---- #
+  for itr in range(t-min_img*img_shape[0]*img_shape[1], t-2*img_shape[0]*img_shape[1], skips):
+      ii = itr + np.random.randint(-skips//2, skips//2)
+      if ii < 0: ii = 0
+      z_old = z[ii:(ii+img_shape[0]*img_shape[1])]
+      x_old = x[ii:(ii+img_shape[0]*img_shape[1])]
+      z_new = z[(ii+img_shape[0]*img_shape[1]):(ii+2*img_shape[0]*img_shape[1])]
+      x_new = x[(ii+img_shape[0]*img_shape[1]):(ii+2*img_shape[0]*img_shape[1])]
+      if training_ep < min_training:
+        df.train_predictor(x_old, x_new)
+        df.train_noise_predictor(z_new)
+      if  training_ep > min_training:
+        df.train_updator(x_old,x_new,z_new)    
+      training_ep += 1
+
+  # ----- Use model to smooth ---- #
+  if training_ep > min_training:
+      z_new = z[(itr+img_shape[0]*img_shape[1]):(itr+2*img_shape[0]*img_shape[1])]  
+      x_new = x[(itr+img_shape[0]*img_shape[1]):(itr+2*img_shape[0]*img_shape[1])] 
+      idxs_new = idxs[(itr+img_shape[0]*img_shape[1]):(itr+2*img_shape[0]*img_shape[1])]
+      if u is not None:
+          u_new = u[(itr+img_shape[0]*img_shape[1]):(itr+2*img_shape[0]*img_shape[1])]
+      else:
+          u_new = None
+      x_old = x[(itr):(itr+img_shape[0]*img_shape[1])]             
+      x_hat_df = df.predict_mean(x_old, z_new)
+           
+
+```
+
