@@ -14,6 +14,7 @@ import pandas as pd
 import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
+from cganfilter.models.particle_filter import  ParticleFilter
 from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
 import scipy.io
 from common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
@@ -51,6 +52,15 @@ def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, im
         x,z = get_dataset_from_image(image/255, n, radius = [15, 25],  partial = partial, mask = mask, pose = [[20,30],[100,100]])
     
     return x, z
+
+# ---- initialize particle filter ---- #
+image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
+pf = ParticleFilter(Np = 20,
+                    No = 2,
+                    ref_img = cv2.imread(image_path,0),
+                    radiuses = [15, 25],
+                    initial_pose =  [[20,30],[100,100]],
+                    beta = 3)
 
 
 # ---- initialize parameters ---- #
@@ -102,6 +112,7 @@ for t in range(0+hist,n_test-1):
     z_new = z_test[t].copy() 
     z_new_test = z_test[t].copy()
     x_new = x_test[t].copy() 
+    x_hat_pf = pf.step(z_new)
     x_hat_df = df.predict_mean(x_old, z_new)
     x_hat_df = x_hat_df[:,:,0]
     x_hat_df_like = df.estimate(z_new_test)
