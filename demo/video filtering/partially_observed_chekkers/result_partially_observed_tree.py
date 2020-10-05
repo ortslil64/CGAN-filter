@@ -42,72 +42,68 @@ def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, im
     elif image_path is not None:
         image = cv2.imread(image_path,0)
         image = cv2.resize(image, img_shape,interpolation = cv2.INTER_AREA)
-        x,z = get_dataset_from_image(image/255, n, radius = [15, 25],  partial = partial, mask = mask, pose = [[20,30],[100,100]])
+        x,z = get_dataset_from_image(image/255, n, radius = [20],  partial = partial, mask = mask, pose = [[10,10]], n_circles = 1, v = [[1,2]])
     elif image_type == "dots":
         image = generate_image(0.01)
-        x,z = get_dataset_from_image(image, n, radius = [15, 25],  partial = partial, mask = mask, pose = [[20,30],[100,100]])
+        x,z = get_dataset_from_image(image, n, radius = [20],  partial = partial, mask = mask, pose = [[10,10]], n_circles = 1, v = [[1,2]])
     elif image_type == "checkers":
         image = np.array(data.checkerboard()).astype(np.float64)
         image = cv2.resize(image, img_shape,interpolation = cv2.INTER_AREA)
-        x,z = get_dataset_from_image(image/255, n, radius = [15, 25],  partial = partial, mask = mask, pose = [[20,30],[100,100]])
+        x,z = get_dataset_from_image(image/255, n, radius = [20],  partial = partial, mask = mask, pose = [[10,10]], n_circles = 1, v = [[1,2]])
     
     return x, z
 
-# ---- initialize particle filter ---- #
-image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
-pf = ParticleFilter(Np = 20,
-                    No = 2,
-                    ref_img = cv2.imread(image_path,0),
-                    radiuses = [15, 25],
-                    initial_pose =  [[20,30],[100,100]],
-                    beta = 3)
+
+
 
 
 # ---- initialize parameters ---- #
 hist = 4     
 img_shape = (128,128) 
 noise_rate = 0.2
-n = 1000
-n_test = 700 
+n = 600
+n_test = 300 
 n_train = n -  n_test
+
+# ---- initialize particle filter ---- #
+image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
+ref_img = cv2.imread(image_path,0)
+ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
+
+pf = ParticleFilter(Np = 100,
+                    No = 1,
+                    ref_img = ref_img,
+                    radiuses = [20],
+                    initial_pose = [[10,10]],
+                    beta = 30)
 # ---- Get the dataset ---- #
 
-x, z = generate_dataset(img_shape, n = 1000,
+x, z = generate_dataset(img_shape, n = n,
                      image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg',
                      mask=spo_dataset.__path__[0] + '/source_image/tree_masked.jpg',
                      partial=True)
         
-x_train = x[:n_train]
-z_train = z[:n_train]
-x_test = x[n_train:]
-z_test = z[n_train:] 
+x_test = x[:n_train]
+z_test = z[:n_train]
+x_train = x[n_train:]
+z_train = z[n_train:] 
 
-
-# ---- Initialize ---- #
+# ---- Initialize DF ---- #
 tf.keras.backend.clear_session()
 df = DeepNoisyBayesianFilter(hist,img_shape)
 
-# ---- Train ---- #
- 
-train_likelihood(df, x_train, z_train, epochs = 130) #100
-train_predictor(df,x_train,epochs = 10, min_img = 2) #5
-train_predictor(df,x_train,epochs = 15, min_img = 20) #10
-train_update(df,x_train,z_train,epochs = 10, min_img = 2) #10
-train_relax(df, x_train, z_train, epochs = 5,  min_img = 10) # 10
-train_relax(df, x_train, z_train, epochs = 50,  min_img = 50) # 10
-train_relax(df, x_train, z_train, epochs = 50,  min_img = None) # 10
+# ---- Load weights ---- #
+df.load_weights('model_weights_partially_observed_tree')
 
-
-# ---- Or load weights ---- #
-df.load_weights('model_weights')
 
 # ---- Test and viualize ---- #
 x_old = x_test[:hist,...].copy()   
 frames = []
 obs_frames = []
 state_frames = []
-df_frames = []
+pf_frames = []
 direct_frames = []
+df_frames = []
 for t in range(0+hist,n_test-1):   
     z_new = z_test[t].copy() 
     z_new_test = z_test[t].copy()
@@ -119,30 +115,40 @@ for t in range(0+hist,n_test-1):
     x_hat_df_like = x_hat_df_like[0,:,:,0]    
     x_old[:-1,:,:] = x_old[1:,:,:]
     x_old[-1,:,:] = x_hat_df   
+    
+    pf_frames.append(add_border(normalize_image(x_hat_pf)))  
     obs_frames.append(add_border(normalize_image(z_new)))       
     state_frames.append(add_border(normalize_image(x_new)))  
     df_frames.append(add_border(normalize_image(x_hat_df)))  
     direct_frames.append(add_border(normalize_image(x_hat_df_like)))  
-    frame1 = np.concatenate((normalize_image(x_new),normalize_image(z_new)),axis = 1)
-    frame2 = np.concatenate((normalize_image(x_hat_df),normalize_image(x_hat_df_like) ),axis = 1)
+    
+    frame1 = np.concatenate((normalize_image(x_new),normalize_image(z_new), np.zeros_like(z_new)),axis = 1)
+    frame2 = np.concatenate((normalize_image(x_hat_df),normalize_image(x_hat_df_like) ,normalize_image(x_hat_pf) ),axis = 1)
     frame = np.concatenate((frame1,frame2),axis = 0)
     frames.append(frame)
-
+    
+    plt.subplot(1,2,1)
+    plt.imshow(x_hat_pf)
+    plt.subplot(1,2,2)
+    plt.imshow(x_new)
+    plt.show()
+    
+    
 # ---- Saves multiple samples as an image ---- #
 idxs = np.arange(15,55,4, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
+pf_img = np.concatenate(tuple(np.array(pf_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
 direct_img = np.concatenate(tuple(np.array(direct_frames)[idxs]),axis=1)
-full_img = np.concatenate(( obs_img,state_img, df_img, direct_img), axis = 0).astype(np.uint8)
+full_img = np.concatenate(( obs_img,state_img, df_img, pf_img, direct_img), axis = 0).astype(np.uint8)
 matplotlib.image.imsave('samples.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
 skvideo.io.vwrite("samples.mp4", frames) 
 
-# ---- Save Weights ---- #
-df.save_weights('model_weights')
+
 
  
     

@@ -44,7 +44,7 @@ class ParticleFilter():
                     self.X[ii, jj, 2] = -self.X[ii, jj, 2]
                     self.X[ii, jj, 0] = 0
                 
-                self.X[ii, jj, 1] = self.X[ii, jj, 1] + self.X[ii, jj, 3]+ np.random.randint(-6, 7)
+                self.X[ii, jj, 1] = self.X[ii, jj, 1] + self.X[ii, jj, 3] + np.random.randint(-6, 7)
                 if self.X[ii, jj, 1] >= self.height:
                     self.X[ii, jj, 3] = -self.X[ii, jj, 3]
                     self.X[ii, jj, 1] = self.height
