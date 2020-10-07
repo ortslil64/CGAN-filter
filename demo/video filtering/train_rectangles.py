@@ -15,7 +15,7 @@ import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
 from cganfilter.models.particle_filter import  ParticleFilter
-from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
+from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image, get_dataset_rotating_objects
 import scipy.io
 from common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
 import skvideo.io
@@ -34,27 +34,6 @@ def add_border(img, border_size = 1, intense = 255):
     bigger_img[border_size:(border_size+img_size[0]) , border_size:(border_size+img_size[1])] = img
     return bigger_img
 
-def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, image_type = None,  output_type = "images", output_folder = "dataset/images/dots/",  partial = False, mask = None):
-    frames = []
-    if mask is not None:
-        mask = cv2.imread(mask,0)
-        mask = cv2.resize(mask, img_shape,interpolation = cv2.INTER_AREA)
-    if video_path is not None:
-        images, _ = get_video(video_path, n)
-        x,z = get_dataset_from_video(images, n)
-    elif image_path is not None:
-        image = cv2.imread(image_path,0)
-        image = cv2.resize(image, img_shape,interpolation = cv2.INTER_AREA)
-        x,z = get_dataset_from_image(image/255, n, radius = [18, 22],  partial = partial, mask = mask, pose = [[10,10],[100,100]], n_circles = 2, v = [[1,2], [2,1]])
-    elif image_type == "dots":
-        image = generate_image(0.01)
-        x,z = get_dataset_from_image(image, n, radius = [18, 22],  partial = partial, mask = mask, pose = [[10,10],[100,100]], n_circles = 2, v = [[1,2], [2,1]])
-    elif image_type == "checkers":
-        image = np.array(data.checkerboard()).astype(np.float64)
-        image = cv2.resize(image, img_shape,interpolation = cv2.INTER_AREA)
-        x,z = get_dataset_from_image(image/255, n, radius = [18, 22],  partial = partial, mask = mask, pose = [[10,10],[100,100]], n_circles = 2, v = [[1,2], [2,1]])
-    
-    return x, z
 
 
 
@@ -63,18 +42,17 @@ def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, im
 hist = 4     
 img_shape = (128,128) 
 noise_rate = 0.2
-n = 600
+n = 800
 n_test = 300 
 n_train = n -  n_test
 # ---- Get the dataset ---- #
 
-x, z = generate_dataset(img_shape, n = n,
-                        image_path=spo_dataset.__path__[0] + '/source_image/illusion.jpg')
+x, z = get_dataset_rotating_objects(image_shape = img_shape, n = n, var = 100)
         
-x_test = x[:n_train]
-z_test = z[:n_train]
-x_train = x[n_train:]
-z_train = z[n_train:] 
+x_test = np.array(x[:n_test])
+z_test = np.array(z[:n_test])
+x_train = np.array(x[n_test:])
+z_train = np.array(z[n_test:] )
 
 
 # ---- Initialize ---- #
@@ -92,8 +70,7 @@ train_relax(df, x_train, z_train, epochs = 50,  min_img = 50) # 10
 train_relax(df, x_train, z_train, epochs = 50,  min_img = None) # 10
 
 
-# ---- Or load weights ---- #
-df.load_weights('model_weights')
+
 
 # ---- Initialize testing arrays ---- #
 cm_err_df = []  
@@ -134,7 +111,7 @@ for t in range(0+hist,n_test-1):
     frames.append(frame)
 
 # ---- Saves multiple samples as an image ---- #
-idxs = np.arange(15,200,4, dtype = np.int16)
+idxs = np.arange(0,24,1, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
@@ -147,7 +124,7 @@ outputdata = np.array(frames).astype(np.uint8)
 skvideo.io.vwrite("samples.mp4", frames) 
 
 # ---- Save Weights ---- #
-df.save_weights('model_weights')
+df.save_weights('model_weights_rectangles')
 
  
     

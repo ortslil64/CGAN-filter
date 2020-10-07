@@ -45,26 +45,18 @@ def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, im
     elif image_path is not None:
         image = cv2.imread(image_path,0)
         image = cv2.resize(image, img_shape,interpolation = cv2.INTER_AREA)
-        x,z = get_dataset_from_image(image/255, n, radius = [20],  partial = partial, mask = mask, pose = [[10,10]], n_circles = 1, v = [[1,2]])
+        x,z = get_dataset_from_image(image/255, n, radius = [18, 22],  partial = partial, mask = mask, pose = [[10,10],[100,100]], n_circles = 2, v = [[1,2], [2,1]])
     elif image_type == "dots":
         image = generate_image(0.01)
-        x,z = get_dataset_from_image(image, n, radius = [20],  partial = partial, mask = mask, pose = [[10,10]], n_circles = 1, v = [[1,2]])
+        x,z = get_dataset_from_image(image, n, radius = [18, 22],  partial = partial, mask = mask, pose = [[10,10],[100,100]], n_circles = 2, v = [[1,2], [2,1]])
     elif image_type == "checkers":
         image = np.array(data.checkerboard()).astype(np.float64)
         image = cv2.resize(image, img_shape,interpolation = cv2.INTER_AREA)
-        x,z = get_dataset_from_image(image/255, n, radius = [20],  partial = partial, mask = mask, pose = [[10,10]], n_circles = 1, v = [[1,2]])
+        x,z = get_dataset_from_image(image/255, n, radius = [18, 22],  partial = partial, mask = mask, pose = [[10,10],[100,100]], n_circles = 2, v = [[1,2], [2,1]])
     
     return x, z
 
 
-# ---- initialize particle filter ---- #
-image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
-pf = ParticleFilter(Np = 20,
-                    No = 2,
-                    ref_img = cv2.imread(image_path,0),
-                    radiuses = [20],
-                    initial_pose =  [[20,30]],
-                    beta = 3)
 
 
 # ---- initialize parameters ---- #
@@ -77,9 +69,7 @@ n_train = n -  n_test
 # ---- Get the dataset ---- #
 
 x, z = generate_dataset(img_shape, n = n,
-                     image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg',
-                     mask=spo_dataset.__path__[0] + '/source_image/tree_masked.jpg',
-                     partial=True)
+                        image_path=spo_dataset.__path__[0] + '/source_image/illusion.jpg')
         
 x_test = x[:n_train]
 z_test = z[:n_train]
@@ -105,13 +95,24 @@ train_relax(df, x_train, z_train, epochs = 50,  min_img = None) # 10
 # ---- Or load weights ---- #
 df.load_weights('model_weights')
 
-# ---- Test and viualize ---- #
-x_old = x_test[:hist,...].copy()   
+# ---- Initialize testing arrays ---- #
+cm_err_df = []  
+mass_err_df = []  
+img_err_df = []  
+ 
+cm_err_direct = []  
+mass_err_direct = [] 
+img_err_direct = []
+
 frames = []
 obs_frames = []
 state_frames = []
 df_frames = []
 direct_frames = []
+
+# ---- Test and viualize ---- #
+x_old = x_test[:hist,...].copy()   
+
 for t in range(0+hist,n_test-1):   
     z_new = z_test[t].copy() 
     z_new_test = z_test[t].copy()
@@ -143,9 +144,10 @@ matplotlib.image.imsave('samples.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
-skvideo.io.vwrite("z.mp4", outputdata, outputdict={"-vcodec":"mpeg2video"})
+skvideo.io.vwrite("samples.mp4", frames) 
+
 # ---- Save Weights ---- #
-df.save_weights('model_weights')
+df.save_weights('model_weights_illusion')
 
  
     
