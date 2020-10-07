@@ -111,7 +111,7 @@ for t in range(0+hist,n_test-1):
     frames.append(frame)
 
 # ---- Saves multiple samples as an image ---- #
-idxs = np.arange(0,24,1, dtype = np.int16)
+idxs = np.arange(0,50,2, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
