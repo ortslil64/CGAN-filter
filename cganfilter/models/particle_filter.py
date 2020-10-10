@@ -71,10 +71,10 @@ class ParticleFilter():
                     self.X[ii, jj, 0] = np.random.randint(0, self.width)
                     self.X[ii, jj, 1] = np.random.randint(0, self.height)
                 else:
-                    self.X[ii, jj, 0] = initial_pose[jj][0] + np.random.randint(-20, 20)
+                    self.X[ii, jj, 0] = initial_pose[jj][0] + np.random.randint(-50, 50)
                     if self.X[ii, jj, 0] >= self.width:
                         self.X[ii, jj, 0] = self.width
-                    self.X[ii, jj, 1] = initial_pose[jj][1] + np.random.randint(-20, 20)
+                    self.X[ii, jj, 1] = initial_pose[jj][1] + np.random.randint(-50, 50)
                     if self.X[ii, jj, 1] >= self.height:
                         self.X[ii, jj, 1] = self.height 
                 self.X[ii, jj, 2] = np.random.randint(-3, 4)
@@ -83,7 +83,7 @@ class ParticleFilter():
     def propogate(self):
         for jj in range(self.No):
             for ii in range(self.Np):
-                self.X[ii, jj, 0] = self.X[ii, jj, 0] + self.X[ii, jj, 2] + np.random.randint(-6, 7)
+                self.X[ii, jj, 0] = self.X[ii, jj, 0] + self.X[ii, jj, 2] + np.random.randint(-1, 2)
                 if self.X[ii, jj, 0] >= self.width:
                     self.X[ii, jj, 2] = -self.X[ii, jj, 2]
                     self.X[ii, jj, 0] = self.width
@@ -91,7 +91,7 @@ class ParticleFilter():
                     self.X[ii, jj, 2] = -self.X[ii, jj, 2]
                     self.X[ii, jj, 0] = 0
                 
-                self.X[ii, jj, 1] = self.X[ii, jj, 1] + self.X[ii, jj, 3] + np.random.randint(-6, 7)
+                self.X[ii, jj, 1] = self.X[ii, jj, 1] + self.X[ii, jj, 3] + np.random.randint(-1, 2)
                 if self.X[ii, jj, 1] >= self.height:
                     self.X[ii, jj, 3] = -self.X[ii, jj, 3]
                     self.X[ii, jj, 1] = self.height
@@ -114,9 +114,13 @@ class ParticleFilter():
     def update(self, z):
         for ii in range(self.Np):
             ref_img_temp = self.ref_img.copy()
+            #ref_img_temp = np.zeros_like(self.ref_img)
             for jj in range(self.No):
                 ref_img_temp = add_circle_mag(ref_img_temp, self.X[ii, jj, 0:2], self.radiuses[jj])
-            L = np.exp(-self.beta * np.mean(np.abs(z -ref_img_temp)))
+                #ref_img_temp = cv2.circle(ref_img_temp,(int(self.X[ii, jj, 0]), int(self.X[ii, jj, 1])),self.radiuses[jj],(255,255,255),-1) 
+                ref_img_temp = ref_img_temp.astype(np.float32)/255
+            #L = np.mean(np.abs(z.astype(np.float32) * ref_img_temp))
+            L = np.exp(-self.beta * np.mean(np.power(z.astype(np.float32) -ref_img_temp,2)))
             self.W[ii] = self.W[ii] * L
         self.W = self.W/np.sum(self.W)
         

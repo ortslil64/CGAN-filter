@@ -14,10 +14,10 @@ import pandas as pd
 import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
-from cganfilter.models.particle_filter import  ParticleFilter
+from cganfilter.models.particle_filter import ParticleFilter
 from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
 import scipy.io
-from common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
+from cganfilter.common.common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
 import skvideo.io
 import matplotlib
 from skimage import data
@@ -70,12 +70,12 @@ image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
 ref_img = cv2.imread(image_path,0)
 ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
 
-pf = ParticleFilter(Np = 100,
+pf = ParticleFilter(Np = 300,
                     No = 1,
                     ref_img = ref_img,
                     radiuses = [20],
-                    initial_pose = [[10,10]],
-                    beta = 30)
+                    initial_pose = [[14,18]],
+                    beta = 100)
 # ---- Get the dataset ---- #
 
 x, z = generate_dataset(img_shape, n = n,
@@ -162,7 +162,7 @@ for t in range(0+hist,n_test-1):
     
     
 # ---- Saves multiple samples as an image ---- #
-idxs = np.arange(15,55,4, dtype = np.int16)
+idxs = np.arange(70,110,3, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
 pf_img = np.concatenate(tuple(np.array(pf_frames)[idxs]),axis=1)
