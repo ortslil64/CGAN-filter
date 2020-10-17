@@ -14,15 +14,17 @@ import pandas as pd
 import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
-from cganfilter.models.particle_filter import  ParticleFilter
+from cganfilter.models.particle_filter import  ParticleFilter_inverse
 from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
 import scipy.io
-from common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
+from cganfilter.common.common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
 import skvideo.io
 import matplotlib
 from skimage import data
 import cv2
 import spo_dataset
+
+
 # ---- Aditional functions ---- #
 
 def add_border(img, border_size = 1, intense = 255):
@@ -30,6 +32,7 @@ def add_border(img, border_size = 1, intense = 255):
     bigger_img = np.ones((img_size[0]+border_size*2, img_size[1]+border_size*2))*intense
     bigger_img[border_size:(border_size+img_size[0]) , border_size:(border_size+img_size[1])] = img
     return bigger_img
+
 
 def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, image_type = None,  output_type = "images", output_folder = "dataset/images/dots/",  partial = False, mask = None):
     frames = []
@@ -56,7 +59,6 @@ def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, im
 
 
 
-
 # ---- initialize parameters ---- #
 hist = 4     
 img_shape = (128,128) 
@@ -64,30 +66,27 @@ noise_rate = 0.2
 n = 600
 n_test = 300 
 n_train = n -  n_test
-
-# ---- initialize particle filter ---- #
-image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
-ref_img = cv2.imread(image_path,0)
-ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
-
-pf = ParticleFilter(Np = 100,
-                    No = 1,
-                    ref_img = ref_img,
-                    radiuses = [20],
-                    initial_pose = [[10,10]],
-                    beta = 30)
 # ---- Get the dataset ---- #
 
-x, z = generate_dataset(img_shape, n = n,
-                     image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg',
-                     mask=spo_dataset.__path__[0] + '/source_image/tree_masked.jpg',
-                     partial=True)
-        
+z, x = generate_dataset(img_shape, n = n,
+                        image_type = "checkers")
 x_test = x[:n_train]
 z_test = z[:n_train]
 x_train = x[n_train:]
 z_train = z[n_train:] 
 
+
+
+# ---- initialize particle filter ---- #
+ref_img = np.array(data.checkerboard()).astype(np.float64)
+ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
+
+pf = ParticleFilter_inverse(Np = 300,
+                    No = 1,
+                    ref_img = ref_img,
+                    radiuses = [20],
+                    initial_pose =[[10,10]],
+                    beta = 60)
 
 
 # ---- Test and viualize ---- #

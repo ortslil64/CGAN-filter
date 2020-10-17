@@ -14,7 +14,7 @@ import pandas as pd
 import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
-from cganfilter.models.particle_filter import ParticleFilter
+from cganfilter.models.particle_filter import  ParticleFilter_inverse
 from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
 import scipy.io
 from cganfilter.common.common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
@@ -24,6 +24,7 @@ from skimage import data
 import cv2
 import spo_dataset
 # ---- Aditional functions ---- #
+
 def KL_img(img1, img2, bins = 100):
     H1,_ = np.histogram(img1.ravel(),bins,(0,1)) 
     H2,_ = np.histogram(img2.ravel(),bins,(0,1)) 
@@ -67,7 +68,6 @@ def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, im
 
 
 
-
 # ---- initialize parameters ---- #
 hist = 4     
 img_shape = (128,128) 
@@ -75,38 +75,40 @@ noise_rate = 0.2
 n = 600
 n_test = 300 
 n_train = n -  n_test
-
-# ---- initialize particle filter ---- #
-image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
-ref_img = cv2.imread(image_path,0)
-ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
-
-pf = ParticleFilter(Np = 500,
-                    No = 1,
-                    ref_img = ref_img,
-                    radiuses = [20],
-                    initial_pose = [[14,18]],
-                    beta = 60)
 # ---- Get the dataset ---- #
 
-x, z = generate_dataset(img_shape, n = n,
-                     image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg',
-                     mask=spo_dataset.__path__[0] + '/source_image/tree_masked.jpg',
-                     partial=True)
-        
+
+
+z, x = generate_dataset(img_shape, n = n,
+                        image_type = "checkers")
 x_test = x[:n_train]
 z_test = z[:n_train]
 x_train = x[n_train:]
 z_train = z[n_train:] 
 
-# ---- Initialize DF ---- #
+# ---- Initialize ---- #
 tf.keras.backend.clear_session()
 df = DeepNoisyBayesianFilter(hist,img_shape)
 
-# ---- Load weights ---- #
-df.load_weights('model_weights_partially_observed_tree')
 
-# ---- Initialize testing arrays ---- #
+# ---- Load weights ---- #
+df.load_weights('model_weights_inverse_chekkers')
+
+
+
+
+
+# ---- initialize particle filter ---- #
+ref_img = np.array(data.checkerboard()).astype(np.float64)
+ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
+
+pf = ParticleFilter_inverse(Np = 1000,
+                    No = 1,
+                    ref_img = ref_img,
+                    radiuses = [20],
+                    initial_pose =[[10,10]],
+                    beta = 10)
+
 # ---- Test and viualize ---- #
 x_old = x_test[:hist,...].copy()   
 frames = []
@@ -179,14 +181,14 @@ for t in range(0+hist,n_test-1):
     
     
 # ---- Saves multiple samples as an image ---- #
-idxs = np.arange(65,115,3, dtype = np.int16)
+idxs = np.arange(0,160,8, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
 pf_img = np.concatenate(tuple(np.array(pf_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
 direct_img = np.concatenate(tuple(np.array(direct_frames)[idxs]),axis=1)
 full_img = np.concatenate(( obs_img,state_img, df_img,direct_img, pf_img ), axis = 0).astype(np.uint8)
-matplotlib.image.imsave('samplesl6.png', full_img, cmap='gray')
+matplotlib.image.imsave('samples2.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
@@ -219,15 +221,18 @@ plt.show()
 
 # ---- Save error statistics ---- #
 
-scipy.io.savemat('partial_observation_tree_data2.mat', mdict={'cm_err_df': np.array(cm_err_df),
+scipy.io.savemat('inverse_chekkers_data.mat', mdict={'cm_err_df': np.array(cm_err_df),
                                                              'cm_err_pf': np.array(cm_err_pf),
                                                              'cm_err_direct': np.array(cm_err_direct),
                                                              'img_err_df': np.array(img_err_df),
                                                              'img_err_pf': np.array(img_err_pf),
                                                              'img_err_direct': np.array(img_err_direct),
-                                                             'img_kl_df': np.array(img_kl_df),
-                                                             'img_kl_pf': np.array(img_kl_pf),
-                                                             'img_kl_direct': np.array(img_kl_direct)})
+                                                             'mass_err_df': np.array(mass_err_df),
+                                                             'mass_err_pf': np.array(mass_err_pf),
+                                                             'mass_err_direct': np.array(mass_err_direct)})
+
+
+
  
     
 

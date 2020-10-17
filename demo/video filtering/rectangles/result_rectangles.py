@@ -14,16 +14,28 @@ import pandas as pd
 import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
-from cganfilter.models.particle_filter import  ParticleFilter
-from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
+from cganfilter.models.particle_filter import  ParticleFilterRect
+from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image, get_dataset_rotating_objects
 import scipy.io
-from common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
+from cganfilter.common.common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
 import skvideo.io
 import matplotlib
 from skimage import data
 import cv2
 import spo_dataset
 # ---- Aditional functions ---- #
+
+def KL_img(img1, img2, bins = 100):
+    H1,_ = np.histogram(img1.ravel(),bins,(0,1)) 
+    H2,_ = np.histogram(img2.ravel(),bins,(0,1)) 
+    H1 = H1/np.sum(H1)
+    H2 = H2/np.sum(H1)
+    H1 = H1 + 0.001
+    H1 = H1/np.sum(H1)
+    H2 = H2 + 0.001
+    H2 = H2/np.sum(H1)
+    kl = -np.sum(H1 * (np.log(H1) - np.log(H2)))
+    return kl
 
 def add_border(img, border_size = 1, intense = 255):
     img_size = img.shape
@@ -60,50 +72,68 @@ def generate_dataset(img_shape, n = 100,video_path = None, image_path = None, im
 # ---- initialize parameters ---- #
 hist = 4     
 img_shape = (128,128) 
-noise_rate = 0.2
 n = 600
 n_test = 300 
 n_train = n -  n_test
 
-# ---- initialize particle filter ---- #
-image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
-ref_img = cv2.imread(image_path,0)
-ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
 
-pf = ParticleFilter(Np = 100,
-                    No = 1,
-                    ref_img = ref_img,
-                    radiuses = [20],
-                    initial_pose = [[10,10]],
-                    beta = 30)
 # ---- Get the dataset ---- #
+    # ---- Gaussian noise ---- #
+var = 100
+x, z = get_dataset_rotating_objects(image_shape = img_shape, n = n, var = var)
 
-x, z = generate_dataset(img_shape, n = n,
-                     image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg',
-                     mask=spo_dataset.__path__[0] + '/source_image/tree_masked.jpg',
-                     partial=True)
-        
-x_test = x[:n_train]
-z_test = z[:n_train]
-x_train = x[n_train:]
-z_train = z[n_train:] 
+    # ---- Bernulli noise ---- #
+var = 0.8
+x, z = get_dataset_rotating_objects(image_shape = img_shape, n = n, var = var, Ber = True)
+
+x_test = np.array(x[:n_test])
+z_test = np.array(z[:n_test])
+x_train = np.array(x[n_test:])
+z_train = np.array(z[n_test:] )
+
+
 
 # ---- Initialize DF ---- #
 tf.keras.backend.clear_session()
 df = DeepNoisyBayesianFilter(hist,img_shape)
 
 # ---- Load weights ---- #
-df.load_weights('model_weights_partially_observed_tree')
+df.load_weights('model_weights_rectangles_very_noisy')
+
+# ---- initialize particle filter ---- #
+pf = ParticleFilterRect(Np = 10000,
+                        var = var,
+                        img_shape = img_shape,
+                        beta = 1,
+                        Ber = True)
 
 
-# ---- Test and viualize ---- #
-x_old = x_test[:hist,...].copy()   
+# ---- Initialize testing arrays ---- #
+cm_err_df = []  
+mass_err_df = []  
+img_err_df = [] 
+img_kl_df = []  
+
+cm_err_pf = []  
+mass_err_pf = []  
+img_err_pf = []  
+img_kl_pf = [] 
+
+cm_err_direct = []  
+mass_err_direct = [] 
+img_err_direct = []
+img_kl_direct = [] 
+
 frames = []
 obs_frames = []
 state_frames = []
 pf_frames = []
 direct_frames = []
 df_frames = []
+
+#%% ---- Test and viualize ---- #
+x_old = x_test[0:hist,...].copy()   
+
 for t in range(0+hist,n_test-1):   
     z_new = z_test[t].copy() 
     z_new_test = z_test[t].copy()
@@ -111,10 +141,28 @@ for t in range(0+hist,n_test-1):
     x_hat_pf = pf.step(z_new)
     x_hat_df = df.predict_mean(x_old, z_new)
     x_hat_df = x_hat_df[:,:,0]
+    #x_hat_df[x_hat_df<0.5] = 0
     x_hat_df_like = df.estimate(z_new_test)
-    x_hat_df_like = x_hat_df_like[0,:,:,0]    
+    x_hat_df_like = x_hat_df_like[0,:,:,0] 
+    #x_hat_df_like[x_hat_df_like<0.5] = 0
     x_old[:-1,:,:] = x_old[1:,:,:]
     x_old[-1,:,:] = x_hat_df   
+
+    cm_err_df.append(cm_error(x_new, x_hat_df)) 
+    mass_err_df.append(mass_error(x_new, x_hat_df))  
+    img_err_df.append(img_desc(x_new, x_hat_df))
+    img_kl_df.append(KL_img(x_new, x_hat_df))
+    
+    cm_err_pf.append(cm_error(x_new, x_hat_pf)) 
+    mass_err_pf.append(mass_error(x_new, x_hat_pf))  
+    img_err_pf.append(img_desc(x_new, x_hat_pf)) 
+    img_kl_pf.append(KL_img(x_new, x_hat_pf))
+    
+    cm_err_direct.append(cm_error(x_new, x_hat_df_like)) 
+    mass_err_direct.append(mass_error(x_new, x_hat_df_like))  
+    img_err_direct.append(img_desc(x_new, x_hat_df_like))
+    img_kl_direct.append(KL_img(x_new, x_hat_df_like))
+    
     
     pf_frames.append(add_border(normalize_image(x_hat_pf)))  
     obs_frames.append(add_border(normalize_image(z_new)))       
@@ -134,21 +182,56 @@ for t in range(0+hist,n_test-1):
     plt.show()
     
     
-# ---- Saves multiple samples as an image ---- #
-idxs = np.arange(15,55,4, dtype = np.int16)
+#%% ---- Saves multiple samples as an image ---- #
+idxs = np.arange(0,90,3, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
 pf_img = np.concatenate(tuple(np.array(pf_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
 direct_img = np.concatenate(tuple(np.array(direct_frames)[idxs]),axis=1)
-full_img = np.concatenate(( obs_img,state_img, df_img, pf_img, direct_img), axis = 0).astype(np.uint8)
+full_img = np.concatenate(( obs_img,state_img, df_img, direct_img, pf_img), axis = 0).astype(np.uint8)
 matplotlib.image.imsave('samples.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
 skvideo.io.vwrite("samples.mp4", frames) 
 
+# ---- Visualize errors ---- #
+plt.figure(1)
+plt.plot(cm_err_df, c='blue')
+plt.plot(cm_err_pf, c='red')
+plt.plot(cm_err_direct, c='green')
+plt.show()
 
+plt.figure(2)
+plt.plot(mass_err_df, c='blue')
+plt.plot(mass_err_pf, c='red')
+plt.plot(mass_err_direct, c='green')
+plt.show()
+
+plt.figure(3)
+plt.plot(img_err_df, c='blue')
+plt.plot(img_err_pf, c='red')
+plt.plot(img_err_direct, c='green')
+plt.show()
+
+plt.figure(4)
+plt.plot(img_kl_df, c='blue')
+plt.plot(img_kl_pf, c='red')
+plt.plot(img_kl_direct, c='green')
+plt.show()
+
+# ---- Save error statistics ---- #
+
+scipy.io.savemat('rectangles_data.mat', mdict={'cm_err_df': np.array(cm_err_df),
+                                                             'cm_err_pf': np.array(cm_err_pf),
+                                                             'cm_err_direct': np.array(cm_err_direct),
+                                                             'img_err_df': np.array(img_err_df),
+                                                             'img_err_pf': np.array(img_err_pf),
+                                                             'img_err_direct': np.array(img_err_direct),
+                                                             'img_kl_df': np.array(img_kl_df),
+                                                             'img_kl_pf': np.array(img_kl_pf),
+                                                             'img_kl_direct': np.array(img_kl_direct)})
 
  
     

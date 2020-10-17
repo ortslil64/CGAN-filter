@@ -14,10 +14,9 @@ import pandas as pd
 import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
-from cganfilter.models.particle_filter import  ParticleFilter
-from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image, get_dataset_rotating_objects
+from spo_dataset.spo_generator import get_dataset_rotating_objects
 import scipy.io
-from common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
+from cganfilter.common.common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
 import skvideo.io
 import matplotlib
 from skimage import data
@@ -25,6 +24,7 @@ import cv2
 import spo_dataset
 
 
+gpus = tf.config.experimental.list_physical_devices('GPU')
 
 # ---- Aditional functions ---- #
 
@@ -41,13 +41,12 @@ def add_border(img, border_size = 1, intense = 255):
 # ---- initialize parameters ---- #
 hist = 4     
 img_shape = (128,128) 
-noise_rate = 0.2
-n = 800
+n = 1000
 n_test = 300 
 n_train = n -  n_test
 # ---- Get the dataset ---- #
 
-x, z = get_dataset_rotating_objects(image_shape = img_shape, n = n, var = 100)
+x, z = get_dataset_rotating_objects(image_shape = img_shape, n = n, var = 0.5, Ber = True, partial=True)
         
 x_test = np.array(x[:n_test])
 z_test = np.array(z[:n_test])
@@ -60,14 +59,13 @@ tf.keras.backend.clear_session()
 df = DeepNoisyBayesianFilter(hist,img_shape)
 
 # ---- Train ---- #
- 
 train_likelihood(df, x_train, z_train, epochs = 130) #100
-train_predictor(df,x_train,epochs = 10, min_img = 2) #5
-train_predictor(df,x_train,epochs = 15, min_img = 20) #10
+train_predictor(df,x_train,epochs = 20, min_img = 2) #5
+train_predictor(df,x_train,epochs = 30, min_img = 20) #10
 train_update(df,x_train,z_train,epochs = 10, min_img = 2) #10
 train_relax(df, x_train, z_train, epochs = 5,  min_img = 10) # 10
 train_relax(df, x_train, z_train, epochs = 50,  min_img = 50) # 10
-train_relax(df, x_train, z_train, epochs = 50,  min_img = None) # 10
+train_relax(df, x_train, z_train, epochs = 200,  min_img = None) # 10
 
 
 
@@ -88,7 +86,7 @@ df_frames = []
 direct_frames = []
 
 # ---- Test and viualize ---- #
-x_old = x_test[:hist,...].copy()   
+x_old = x_test[0:hist,...].copy()   
 
 for t in range(0+hist,n_test-1):   
     z_new = z_test[t].copy() 
@@ -97,8 +95,10 @@ for t in range(0+hist,n_test-1):
     #x_hat_pf = pf.step(z_new)
     x_hat_df = df.predict_mean(x_old, z_new)
     x_hat_df = x_hat_df[:,:,0]
+    #x_hat_df[x_hat_df<0.5] = 0
     x_hat_df_like = df.estimate(z_new_test)
-    x_hat_df_like = x_hat_df_like[0,:,:,0]    
+    x_hat_df_like = x_hat_df_like[0,:,:,0]  
+    #x_hat_df_like[x_hat_df_like<0.5] = 0
     x_old[:-1,:,:] = x_old[1:,:,:]
     x_old[-1,:,:] = x_hat_df   
     obs_frames.append(add_border(normalize_image(z_new)))       
@@ -111,20 +111,20 @@ for t in range(0+hist,n_test-1):
     frames.append(frame)
 
 # ---- Saves multiple samples as an image ---- #
-idxs = np.arange(0,50,2, dtype = np.int16)
+idxs = np.arange(0,200,5, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
 direct_img = np.concatenate(tuple(np.array(direct_frames)[idxs]),axis=1)
 full_img = np.concatenate(( obs_img,state_img, df_img, direct_img), axis = 0).astype(np.uint8)
-matplotlib.image.imsave('samples.png', full_img, cmap='gray')
+matplotlib.image.imsave('t.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
 skvideo.io.vwrite("samples.mp4", frames) 
 
 # ---- Save Weights ---- #
-df.save_weights('model_weights_rectangles')
+df.save_weights('model_weights_rectangles_very_noisy')
 
  
     

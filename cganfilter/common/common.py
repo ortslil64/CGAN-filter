@@ -18,6 +18,14 @@ import cv2
 from skimage import data
 import skvideo.io
 
+def KL_img(img1, img2, bins = 100):
+    H1,_ = np.histogram(img1.ravel(),bins,(0,1)) 
+    H2,_ = np.histogram(img2.ravel(),bins,(0,1)) 
+    H1 = H1/np.sum(H1)
+    H2 = H2/np.sum(H1)
+    D = np.sum(H1*H2)
+    return D
+
 def img_desc(img1, img2):
     img_shape = img1.shape
     img1[img1>0.5] = 1
