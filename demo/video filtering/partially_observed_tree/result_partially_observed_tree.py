@@ -101,12 +101,12 @@ image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
 ref_img = cv2.imread(image_path,0)
 ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
 
-pf = ParticleFilter_deep(Np = 20000,
+pf = ParticleFilter_deep(Np = 5000,
                         No = 1,
                         ref_img = ref_img,
                         radiuses = [20],
                         initial_pose = [[10,10]],
-                        beta = 10,
+                        beta = 5,
                         likelihood=df)
 # ---- Get the dataset ---- #
 
@@ -193,7 +193,7 @@ matplotlib.image.imsave('samplesl6.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
-skvideo.io.vwrite("samples.mp4", frames) 
+skvideo.io.vwrite("samples2.mp4", frames) 
 
 # ---- Visualize errors ---- #
 plt.figure(1)
@@ -222,7 +222,7 @@ plt.show()
 
 # ---- Save error statistics ---- #
 
-scipy.io.savemat('partial_observation_tree_data2.mat', mdict={'cm_err_df': np.array(cm_err_df),
+scipy.io.savemat('partial_observation_tree_data3.mat', mdict={'cm_err_df': np.array(cm_err_df),
                                                              'cm_err_pf': np.array(cm_err_pf),
                                                              'cm_err_direct': np.array(cm_err_direct),
                                                              'img_err_df': np.array(img_err_df),
