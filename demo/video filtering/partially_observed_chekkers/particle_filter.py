@@ -27,10 +27,10 @@ class ParticleFilter_deep():
                     self.X[ii, jj, 0] = np.random.randint(0, self.width)
                     self.X[ii, jj, 1] = np.random.randint(0, self.height)
                 else:
-                    self.X[ii, jj, 0] = initial_pose[jj][0] + np.random.uniform(-2, 2)
+                    self.X[ii, jj, 0] = initial_pose[jj][0] + np.random.uniform(-20, 20)
                     if self.X[ii, jj, 0] >= self.width:
                         self.X[ii, jj, 0] = self.width
-                    self.X[ii, jj, 1] = initial_pose[jj][1] + np.random.uniform(-2, 2)
+                    self.X[ii, jj, 1] = initial_pose[jj][1] + np.random.uniform(-20, 20)
                     if self.X[ii, jj, 1] >= self.height:
                         self.X[ii, jj, 1] = self.height 
                 self.X[ii, jj, 2] = self.V[jj][0] 
@@ -39,7 +39,7 @@ class ParticleFilter_deep():
     def propogate(self):
         for jj in range(self.No):
             for ii in range(self.Np):
-                self.X[ii, jj, 0] = self.X[ii, jj, 0] + self.X[ii, jj, 2] + np.random.uniform(-3, 3)
+                self.X[ii, jj, 0] = self.X[ii, jj, 0] + self.X[ii, jj, 2] + np.random.uniform(-1, 1)
                 if self.X[ii, jj, 0] >= self.width:
                     self.X[ii, jj, 2] = -self.X[ii, jj, 2]
                     self.X[ii, jj, 0] = self.width
@@ -47,7 +47,7 @@ class ParticleFilter_deep():
                     self.X[ii, jj, 2] = -self.X[ii, jj, 2]
                     self.X[ii, jj, 0] = 0
                 
-                self.X[ii, jj, 1] = self.X[ii, jj, 1] + self.X[ii, jj, 3] + np.random.uniform(-3, 3)
+                self.X[ii, jj, 1] = self.X[ii, jj, 1] + self.X[ii, jj, 3] + np.random.uniform(-1, 1)
                 if self.X[ii, jj, 1] >= self.height:
                     self.X[ii, jj, 3] = -self.X[ii, jj, 3]
                     self.X[ii, jj, 1] = self.height
@@ -80,17 +80,18 @@ class ParticleFilter_deep():
             self.X = self.X[indxes]
             for jj in range(self.No):
                 for ii in range(self.Np):
-                    self.X[ii, jj, 0] = self.X[ii, jj, 0]  + np.random.randint(-6, 7)
+                    self.X[ii, jj, 0] = self.X[ii, jj, 0]  + np.random.uniform(-4, 4)
                     if self.X[ii, jj, 0] >= self.width:
                         self.X[ii, jj, 0] = self.width
                     if self.X[ii, jj, 0] <= 0:
                         self.X[ii, jj, 0] = 0
                     
-                    self.X[ii, jj, 1] = self.X[ii, jj, 1] +  np.random.randint(-6, 7)
+                    self.X[ii, jj, 1] = self.X[ii, jj, 1] +  np.random.uniform(-4, 4)
                     if self.X[ii, jj, 1] >= self.height:
                         self.X[ii, jj, 1] = self.height
                     if self.X[ii, jj, 1] <= 0:
                         self.X[ii, jj, 1] = 0
+            self.W = np.ones(self.Np)/self.Np
             return True
         else:
             return False

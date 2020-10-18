@@ -14,7 +14,7 @@ import pandas as pd
 import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
-from cganfilter.models.particle_filter import  ParticleFilter_inverse
+from particle_filter import  ParticleFilter_inv
 from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
 import scipy.io
 from cganfilter.common.common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
@@ -102,12 +102,12 @@ df.load_weights('model_weights_inverse_chekkers')
 ref_img = np.array(data.checkerboard()).astype(np.float64)
 ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
 
-pf = ParticleFilter_inverse(Np = 1000,
+pf = ParticleFilter_inv(Np = 10000,
                     No = 1,
                     ref_img = ref_img,
                     radiuses = [20],
-                    initial_pose =[[10,10]],
-                    beta = 10)
+                    initial_pose =[[14,18]],
+                    beta = 1)
 
 # ---- Test and viualize ---- #
 x_old = x_test[:hist,...].copy()   
@@ -188,7 +188,7 @@ pf_img = np.concatenate(tuple(np.array(pf_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
 direct_img = np.concatenate(tuple(np.array(direct_frames)[idxs]),axis=1)
 full_img = np.concatenate(( obs_img,state_img, df_img,direct_img, pf_img ), axis = 0).astype(np.uint8)
-matplotlib.image.imsave('samples2.png', full_img, cmap='gray')
+matplotlib.image.imsave('samples6.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
@@ -209,8 +209,8 @@ plt.show()
 
 plt.figure(3)
 plt.plot(img_err_df, c='blue')
-plt.plot(img_err_pf, c='red')
-plt.plot(img_err_direct, c='green')
+plt.plot(img_err_pf, c='black')
+plt.plot(img_err_direct, c='red')
 plt.show()
 
 plt.figure(4)

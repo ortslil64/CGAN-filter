@@ -7,8 +7,8 @@ from sklearn.cluster import KMeans
 import cv2
 from scipy.stats import multivariate_normal
 
-class ParticleFilter_deep():
-    def __init__(self, Np, No, ref_img, radiuses, initial_pose, beta, likelihood):
+class ParticleFilter_inv():
+    def __init__(self, Np, No, ref_img, radiuses, initial_pose, beta):
         self.Np = Np
         self.No = No
         self.radiuses = radiuses
@@ -20,17 +20,16 @@ class ParticleFilter_deep():
         self.X = np.zeros((Np, No, 4))
         self.initial_pose = initial_pose
         self.V = [[1,2], [2,1]]
-        self.likelihood = likelihood
         for jj in range(No):
             for ii in range(Np):
                 if initial_pose is None:
                     self.X[ii, jj, 0] = np.random.randint(0, self.width)
                     self.X[ii, jj, 1] = np.random.randint(0, self.height)
                 else:
-                    self.X[ii, jj, 0] = initial_pose[jj][0] + np.random.uniform(-10, 10)
+                    self.X[ii, jj, 0] = initial_pose[jj][0] + np.random.uniform(-20, 20)
                     if self.X[ii, jj, 0] >= self.width:
                         self.X[ii, jj, 0] = self.width
-                    self.X[ii, jj, 1] = initial_pose[jj][1] + np.random.uniform(-10, 10)
+                    self.X[ii, jj, 1] = initial_pose[jj][1] + np.random.uniform(-20, 20)
                     if self.X[ii, jj, 1] >= self.height:
                         self.X[ii, jj, 1] = self.height 
                 self.X[ii, jj, 2] = self.V[jj][0] 
@@ -59,15 +58,12 @@ class ParticleFilter_deep():
 
     
     def update(self, z):
-        x_hat_df_like = self.likelihood.estimate(z)
-        x_hat_df_like = x_hat_df_like[0,:,:,0] 
-        x_hat_df_like[x_hat_df_like<0.5] = 0
         for ii in range(self.Np):
             y_hat =  np.zeros_like(self.ref_img)
             for jj in range(self.No):
                 y_hat = cv2.circle(y_hat,(int(self.X[ii, jj, 0]), int(self.X[ii, jj, 1])),self.radiuses[jj],(255,255,255),-1) / 255.0
             
-            L = np.exp(-self.beta * np.mean(np.power(y_hat -x_hat_df_like,2)))
+            L = np.exp(-self.beta * np.mean(np.power(y_hat -z,2)))
 
             self.W[ii] = self.W[ii] * L
         self.W = self.W/np.sum(self.W)
@@ -80,13 +76,13 @@ class ParticleFilter_deep():
             self.X = self.X[indxes]
             for jj in range(self.No):
                 for ii in range(self.Np):
-                    self.X[ii, jj, 0] = self.X[ii, jj, 0]  + np.random.uniform(-2, 2)
+                    self.X[ii, jj, 0] = self.X[ii, jj, 0]  + np.random.uniform(-4, 4)
                     if self.X[ii, jj, 0] >= self.width:
                         self.X[ii, jj, 0] = self.width
                     if self.X[ii, jj, 0] <= 0:
                         self.X[ii, jj, 0] = 0
                     
-                    self.X[ii, jj, 1] = self.X[ii, jj, 1] +  np.random.uniform(-2, 2)
+                    self.X[ii, jj, 1] = self.X[ii, jj, 1] +  np.random.uniform(-4, 4)
                     if self.X[ii, jj, 1] >= self.height:
                         self.X[ii, jj, 1] = self.height
                     if self.X[ii, jj, 1] <= 0:
@@ -101,15 +97,11 @@ class ParticleFilter_deep():
         self.update(z)
         r = self.resample()
         if r: self.update(z)
-        X_output = np.zeros_like(self.ref_img)
-        # X = []
-        # for jj in range(self.No):
-        #     X.append(self.X[:, jj, 0:2])
-        # X = np.concatenate(X, axis = 0)
-        # kmeans = KMeans(n_clusters=self.No, random_state=0).fit(X)
+        X_output = self.ref_img.copy()
         for jj in range(self.No):
             #idx = np.argmax(self.W)
             xy = self.X[:, jj, 0:2].T.dot(self.W)
             #xy = self.X[idx, jj, 0:2]
-            X_output = cv2.circle(X_output,(int(xy[0]), int(xy[1])),self.radiuses[jj],(255,255,255),-1) 
-        return X_output
+            X_output = add_circle_mag(X_output, (int(xy[0]), int(xy[1])), self.radiuses[jj])
+        return X_output/255
+    

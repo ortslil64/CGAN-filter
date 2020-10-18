@@ -105,8 +105,8 @@ pf = ParticleFilter_deep(Np = 5000,
                         No = 1,
                         ref_img = ref_img,
                         radiuses = [20],
-                        initial_pose = [[10,10]],
-                        beta = 5,
+                        initial_pose = [[14,20]],
+                        beta = 1,
                         likelihood=df)
 # ---- Get the dataset ---- #
 
@@ -189,7 +189,7 @@ pf_img = np.concatenate(tuple(np.array(pf_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
 direct_img = np.concatenate(tuple(np.array(direct_frames)[idxs]),axis=1)
 full_img = np.concatenate(( obs_img,state_img, df_img,direct_img, pf_img ), axis = 0).astype(np.uint8)
-matplotlib.image.imsave('samplesl6.png', full_img, cmap='gray')
+matplotlib.image.imsave('samplesl7.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
@@ -210,8 +210,8 @@ plt.show()
 
 plt.figure(3)
 plt.plot(img_err_df, c='blue')
-plt.plot(img_err_pf, c='red')
-plt.plot(img_err_direct, c='green')
+plt.plot(img_err_pf, c='black')
+plt.plot(img_err_direct, c='red')
 plt.show()
 
 plt.figure(4)
@@ -222,7 +222,7 @@ plt.show()
 
 # ---- Save error statistics ---- #
 
-scipy.io.savemat('partial_observation_tree_data3.mat', mdict={'cm_err_df': np.array(cm_err_df),
+scipy.io.savemat('partial_observation_tree_data4.mat', mdict={'cm_err_df': np.array(cm_err_df),
                                                              'cm_err_pf': np.array(cm_err_pf),
                                                              'cm_err_direct': np.array(cm_err_direct),
                                                              'img_err_df': np.array(img_err_df),

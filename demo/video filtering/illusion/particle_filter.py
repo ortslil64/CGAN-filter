@@ -6,6 +6,7 @@ from spo_dataset.spo_generator import add_circle_mag
 from sklearn.cluster import KMeans
 import cv2
 from scipy.stats import multivariate_normal
+from cganfilter.common.common import img_desc
 
 class ParticleFilter_deep():
     def __init__(self, Np, No, ref_img, radiuses, initial_pose, beta, likelihood):
@@ -27,10 +28,10 @@ class ParticleFilter_deep():
                     self.X[ii, jj, 0] = np.random.randint(0, self.width)
                     self.X[ii, jj, 1] = np.random.randint(0, self.height)
                 else:
-                    self.X[ii, jj, 0] = initial_pose[jj][0] + np.random.uniform(-10, 10)
+                    self.X[ii, jj, 0] = initial_pose[jj][0] + np.random.uniform(-20, 20)
                     if self.X[ii, jj, 0] >= self.width:
                         self.X[ii, jj, 0] = self.width
-                    self.X[ii, jj, 1] = initial_pose[jj][1] + np.random.uniform(-10, 10)
+                    self.X[ii, jj, 1] = initial_pose[jj][1] + np.random.uniform(-20, 20)
                     if self.X[ii, jj, 1] >= self.height:
                         self.X[ii, jj, 1] = self.height 
                 self.X[ii, jj, 2] = self.V[jj][0] 
@@ -39,7 +40,7 @@ class ParticleFilter_deep():
     def propogate(self):
         for jj in range(self.No):
             for ii in range(self.Np):
-                self.X[ii, jj, 0] = self.X[ii, jj, 0] + self.X[ii, jj, 2] + np.random.uniform(-1, 1)
+                self.X[ii, jj, 0] = self.X[ii, jj, 0] + self.X[ii, jj, 2] + np.random.uniform(-2, 2)
                 if self.X[ii, jj, 0] >= self.width:
                     self.X[ii, jj, 2] = -self.X[ii, jj, 2]
                     self.X[ii, jj, 0] = self.width
@@ -47,7 +48,7 @@ class ParticleFilter_deep():
                     self.X[ii, jj, 2] = -self.X[ii, jj, 2]
                     self.X[ii, jj, 0] = 0
                 
-                self.X[ii, jj, 1] = self.X[ii, jj, 1] + self.X[ii, jj, 3] + np.random.uniform(-1, 1)
+                self.X[ii, jj, 1] = self.X[ii, jj, 1] + self.X[ii, jj, 3] + np.random.uniform(-2, 2)
                 if self.X[ii, jj, 1] >= self.height:
                     self.X[ii, jj, 3] = -self.X[ii, jj, 3]
                     self.X[ii, jj, 1] = self.height
@@ -65,9 +66,9 @@ class ParticleFilter_deep():
         for ii in range(self.Np):
             y_hat =  np.zeros_like(self.ref_img)
             for jj in range(self.No):
-                y_hat = cv2.circle(y_hat,(int(self.X[ii, jj, 0]), int(self.X[ii, jj, 1])),self.radiuses[jj],(255,255,255),-1) / 255.0
+                y_hat = cv2.circle(y_hat,(int(self.X[ii, jj, 0]), int(self.X[ii, jj, 1])),self.radiuses[jj],(255,255,255),-1) 
             
-            L = np.exp(-self.beta * np.mean(np.power(y_hat -x_hat_df_like,2)))
+            L = np.exp(-self.beta * img_desc(y_hat/255, x_hat_df_like))
 
             self.W[ii] = self.W[ii] * L
         self.W = self.W/np.sum(self.W)
@@ -80,13 +81,13 @@ class ParticleFilter_deep():
             self.X = self.X[indxes]
             for jj in range(self.No):
                 for ii in range(self.Np):
-                    self.X[ii, jj, 0] = self.X[ii, jj, 0]  + np.random.uniform(-2, 2)
+                    self.X[ii, jj, 0] = self.X[ii, jj, 0]  + np.random.uniform(-1, 1)
                     if self.X[ii, jj, 0] >= self.width:
                         self.X[ii, jj, 0] = self.width
                     if self.X[ii, jj, 0] <= 0:
                         self.X[ii, jj, 0] = 0
                     
-                    self.X[ii, jj, 1] = self.X[ii, jj, 1] +  np.random.uniform(-2, 2)
+                    self.X[ii, jj, 1] = self.X[ii, jj, 1] +  np.random.uniform(-1, 1)
                     if self.X[ii, jj, 1] >= self.height:
                         self.X[ii, jj, 1] = self.height
                     if self.X[ii, jj, 1] <= 0:
@@ -112,4 +113,4 @@ class ParticleFilter_deep():
             xy = self.X[:, jj, 0:2].T.dot(self.W)
             #xy = self.X[idx, jj, 0:2]
             X_output = cv2.circle(X_output,(int(xy[0]), int(xy[1])),self.radiuses[jj],(255,255,255),-1) 
-        return X_output
+        return X_output/255

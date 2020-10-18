@@ -14,7 +14,7 @@ import pandas as pd
 import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
-from cganfilter.models.particle_filter import  ParticleFilter
+from particle_filter import  ParticleFilter_deep
 from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
 import scipy.io
 from cganfilter.common.common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
@@ -73,7 +73,7 @@ hist = 4
 img_shape = (128,128) 
 noise_rate = 0.2
 n = 600
-n_test = 300 
+n_test = 200 
 n_train = n -  n_test
 # ---- Get the dataset ---- #
 
@@ -103,12 +103,14 @@ image_path=spo_dataset.__path__[0] + '/source_image/illusion.jpg'
 ref_img = cv2.imread(image_path,0)
 ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
 
-pf = ParticleFilter(Np = 300,
-                    No = 2,
-                    ref_img = ref_img,
-                    radiuses = [18, 22],
-                    initial_pose =[[10,10],[100,100]],
-                    beta = 60)
+# %%
+pf = ParticleFilter_deep(Np = 10000,
+                        No = 2,
+                        ref_img = ref_img,
+                        radiuses = [18, 22],
+                        initial_pose =[[14,18],[108,104]],
+                        beta = 3,
+                        likelihood=df)
 
 # ---- Test and viualize ---- #
 x_old = x_test[:hist,...].copy()   
@@ -182,14 +184,14 @@ for t in range(0+hist,n_test-1):
     
     
 # ---- Saves multiple samples as an image ---- #
-idxs = np.arange(0,99,4, dtype = np.int16)
+idxs = np.arange(0,200,10, dtype = np.int16)
 obs_img = np.concatenate(tuple(np.array(obs_frames)[idxs]),axis=1)
 state_img = np.concatenate(tuple(np.array(state_frames)[idxs]),axis=1)
 pf_img = np.concatenate(tuple(np.array(pf_frames)[idxs]),axis=1)
 df_img = np.concatenate(tuple(np.array(df_frames)[idxs]),axis=1)
 direct_img = np.concatenate(tuple(np.array(direct_frames)[idxs]),axis=1)
 full_img = np.concatenate(( obs_img,state_img, df_img,direct_img, pf_img ), axis = 0).astype(np.uint8)
-matplotlib.image.imsave('samples3.png', full_img, cmap='gray')
+matplotlib.image.imsave('samples5.png', full_img, cmap='gray')
 
 # ---- Saves a video ---- #  
 outputdata = np.array(frames).astype(np.uint8)    
@@ -210,8 +212,8 @@ plt.show()
 
 plt.figure(3)
 plt.plot(img_err_df, c='blue')
-plt.plot(img_err_pf, c='red')
-plt.plot(img_err_direct, c='green')
+plt.plot(img_err_pf, c='black')
+plt.plot(img_err_direct, c='red')
 plt.show()
 
 plt.figure(4)
