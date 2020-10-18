@@ -14,7 +14,7 @@ import pandas as pd
 import csv
 import pickle
 from cganfilter.models.video_filter import DeepNoisyBayesianFilter
-from cganfilter.models.particle_filter import ParticleFilter
+from particle_filter import  ParticleFilter_deep
 from spo_dataset.spo_generator import get_video, get_dataset_from_video, get_dataset_from_image, generate_image
 import scipy.io
 from cganfilter.common.common import train_relax, train_likelihood, train_predictor, train_update, normalize_image, cm_error, img_desc, mass_error
@@ -76,18 +76,6 @@ n = 600
 n_test = 300 
 n_train = n -  n_test
 
-# ---- initialize particle filter ---- #
-image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
-ref_img = cv2.imread(image_path,0)
-ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
-
-pf = ParticleFilter(Np = 500,
-                    No = 1,
-                    ref_img = ref_img,
-                    radiuses = [20],
-                    initial_pose = [[14,18]],
-                    beta = 60)
-# ---- Get the dataset ---- #
 
 x, z = generate_dataset(img_shape, n = n,
                      image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg',
@@ -107,6 +95,21 @@ df = DeepNoisyBayesianFilter(hist,img_shape)
 df.load_weights('model_weights_partially_observed_tree')
 
 # ---- Initialize testing arrays ---- #
+
+# ---- initialize particle filter ---- #
+image_path=spo_dataset.__path__[0] + '/source_image/tree.jpg'
+ref_img = cv2.imread(image_path,0)
+ref_img = cv2.resize(ref_img, img_shape,interpolation = cv2.INTER_AREA)
+
+pf = ParticleFilter_deep(Np = 20000,
+                        No = 1,
+                        ref_img = ref_img,
+                        radiuses = [20],
+                        initial_pose = [[10,10]],
+                        beta = 10,
+                        likelihood=df)
+# ---- Get the dataset ---- #
+
 # ---- Test and viualize ---- #
 x_old = x_test[:hist,...].copy()   
 frames = []
