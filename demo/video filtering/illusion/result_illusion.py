@@ -140,11 +140,17 @@ for t in range(0+hist,n_test-1):
     z_new = z_test[t].copy() 
     z_new_test = z_test[t].copy()
     x_new = x_test[t].copy() 
+    t_old = time.time()
     x_hat_pf = pf.step(z_new)
+    print("pf dt:"+str(time.time() - t_old))
+    t_old = time.time()
     x_hat_df = df.predict_mean(x_old, z_new)
+    print("df dt:"+str(time.time() - t_old))
     x_hat_df = x_hat_df[:,:,0]
     x_hat_df[x_hat_df<0.5] = 0
+    t_old = time.time()
     x_hat_df_like = df.estimate(z_new_test)
+    print("pix2pix dt:"+str(time.time() - t_old))
     x_hat_df_like = x_hat_df_like[0,:,:,0] 
     x_hat_df_like[x_hat_df_like<0.5] = 0
     x_old[:-1,:,:] = x_old[1:,:,:]

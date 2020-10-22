@@ -9,6 +9,7 @@ from cganfilter.legacy_filters.kalman_filter import Kalman_smoother, Kalman_smoo
 from cganfilter.legacy_filters.particle_filter import particle_filter_non_linear
 import tensorflow as tf
 import scipy.io
+import time
 TF_ENABLE_GPU_GARBAGE_COLLECTION=False
         
 def smooth(x):
@@ -118,7 +119,9 @@ for mc_run in range(mc_runs):
                 u_new = None
             x_old = x[(itr):(itr+img_shape[0]*img_shape[1])]             
             with tf.device('/gpu:0'):
+                t_old = time.time()
                 x_hat_df = df.predict_mean(x_old, z_new)
+                print("df dt:"+str(time.time() - t_old))
            
             
             '''
@@ -131,8 +134,10 @@ for mc_run in range(mc_runs):
                 2) Particle filter:
                    x_hat_kf, p_hat_kf =  particle_filter_non_linear(z_new,x_new[0], idxs_new)
             '''
-            #x_hat_kf, p_hat_kf = Kalman_smoother(z_new, idxs_new, u = u_new ,x0 = x_new[0], A = 1.0, R = 0.01, Q = 0.0001, hist = 200)
-            x_hat_kf, p_hat_kf =  particle_filter_non_linear(z_new,x_new[0], idxs_new)
+            t_old = time.time()
+            x_hat_kf, p_hat_kf = Kalman_smoother(z_new, idxs_new, u = u_new ,x0 = x_new[0], A = 1.0, R = 0.01, Q = 0.0001, hist = 200)
+            #x_hat_kf, p_hat_kf =  particle_filter_non_linear(z_new,x_new[0], idxs_new)
+            print("pf dt:"+str(time.time() - t_old))
             
             df_samples[mc_run].append(x_hat_df[n_crop:-n_crop])
             idxs_samples[mc_run].append(idxs_new[n_crop:-n_crop])
